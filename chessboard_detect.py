@@ -10,16 +10,16 @@ from rectify_refine import *
 import os
 np.set_printoptions(suppress=True) # Better printing of arrays
 
-SAVE_RECTIFIED = False # Save rectified images out
-SAVE_PLOT = False # Save plots (doesn't need to visualize)
+SAVE_RECTIFIED = True # Save rectified images out
+SAVE_PLOT = True # Save plots (doesn't need to visualize)
 SHOW_PLOTS = True # Visualize plots
 
-input_folder = "input2"
+input_folder = "input"
 output_folder = "rectified"
 plot_folder = "plots"
 
 
-for i in [23]:
+for i in [26]:
   filename ="%02d.jpg" % i
 # for filename in os.listdir(input_folder):
   filepath = "%s/%s" % (input_folder,filename)

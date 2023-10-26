@@ -34,8 +34,8 @@ def getLineGradients(line, gradient_x, gradient_y, gradient_mag, sampling_rate=0
 
   # Get points along line, choosing number of points giving a sampling rate in pixels per points (1-1 is good)
   num_pts_on_line = np.ceil(np.sqrt(np.sum((ptB - ptA)**2)) / sampling_rate)
-  guessx = np.linspace(ptA[1],ptB[1],num_pts_on_line)
-  guessy = np.linspace(ptA[0],ptB[0],num_pts_on_line)
+  guessx = np.linspace(ptA[1],ptB[1],int(num_pts_on_line))
+  guessy = np.linspace(ptA[0],ptB[0],int(num_pts_on_line))
   
   line_indices = np.floor(np.vstack((guessx, guessy)).T).astype(int)
   gradients = np.vstack(
