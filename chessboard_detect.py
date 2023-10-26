@@ -19,7 +19,7 @@ output_folder = "rectified"
 plot_folder = "plots"
 
 
-for i in [26]:
+for i in [23]:
   filename ="%02d.jpg" % i
 # for filename in os.listdir(input_folder):
   filepath = "%s/%s" % (input_folder,filename)
@@ -119,10 +119,12 @@ for i in [26]:
     ##################
     # Plot Top Left Image, initial corner finding setup
     fig = plt.figure(filename, figsize=(12,8))
-    fig.subplots_adjust(left=0.05,right=.95,bottom=0.05,top=.95)
+    #fig.subplots_adjust(left=0.05,right=.95,bottom=0.05,top=.95)
+    '''
     plt.subplot(221,aspect='equal')
     plt.imshow(img_orig)
 
+    
     # Lines
     for idx, line in enumerate(lines_a):
       x1, y1, x2, y2 = line
@@ -140,7 +142,7 @@ for i in [26]:
 
     plt.title('Input chess board + overlay initial prediction')
     plt.axis([0,img_orig.size[0],img_orig.size[1], 0])
-
+  
     ##################
     # Plot Top Right: Rectified image + lines
     plt.subplot(222,aspect='equal')
@@ -170,13 +172,13 @@ for i in [26]:
 
     plt.title('Overlay: Refined tile positions')
     plt.axis([0,img_orig.size[0],img_orig.size[1], 0])
-
+'''
     ##################
     # Plot Bottom Right: Updated tile map
-    plt.subplot(224,aspect='equal')
+    #plt.subplot(224,aspect='equal')
     plt.imshow(better_warped_img)
     
-    for i in range(1,8):
+    for i in range(0,9): #De 0 à 9 pour poouvoir aussi capter les bors de l'échiquier
       ix = (i+tile_buffer)*tile_res
       iy0 = tile_buffer*tile_res
       plt.plot([ix, ix],
@@ -184,7 +186,7 @@ for i in [26]:
                'r', lw=2)
       plt.text(ix-10, iy0-10, '%d' % i, color='white', size=10, fontweight='heavy');
     
-    for i in range(1,8):
+    for i in range(0,9):
       iy = (i+tile_buffer)*tile_res
       ix0 = tile_buffer*tile_res
       plt.plot([ix0,(8+tile_buffer)*tile_res],
