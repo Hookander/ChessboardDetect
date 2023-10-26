@@ -177,9 +177,10 @@ for i in [23]:
     # Plot Bottom Right: Updated tile map
     #plt.subplot(224,aspect='equal')
     plt.imshow(better_warped_img)
-    
+    pts_x, pts_y = [], []
     for i in range(0,9): #De 0 à 9 pour poouvoir aussi capter les bors de l'échiquier
       ix = (i+tile_buffer)*tile_res
+      pts_x.append(ix)
       iy0 = tile_buffer*tile_res
       plt.plot([ix, ix],
                [iy0,(8+tile_buffer)*tile_res],
@@ -188,10 +189,11 @@ for i in [23]:
     
     for i in range(0,9):
       iy = (i+tile_buffer)*tile_res
+      pts_y.append(iy)
       ix0 = tile_buffer*tile_res
       plt.plot([ix0,(8+tile_buffer)*tile_res],
                [iy, iy],
-               'g', lw=2)
+               'r', lw=2)
       plt.text(ix0-25, iy+5, '%d' % i, color='white', size=10, fontweight='heavy');
 
     plt.title('Output refined tile map')
@@ -201,7 +203,22 @@ for i in [23]:
       output_plot_filename = plot_folder+"/"+filename[:-3]+"png"
       print(" Saving plot to %s" % output_plot_filename)
       plt.savefig(output_plot_filename, bbox_inches='tight')
+    
+    """
+    Mtn qu'on a la position des intersections des cases de l'échiquier normalisé, on va calculer les "couleurs moyennes"
+    sur chaque case (dont on connait les coordonnées) -> permet de les comparer d'une photo à l'autre et donc
+    de savoir si une pièce a bougé ou pas
+    """
+    col_moy = [0 for i in range(64)]
+    print(pts_x)
+    print(better_warped_img.shape)
 
+    for i in range(len(pts_x)-1):
+      for j in range(len(pts_y) - 1):
+        milieu_x = int((pts_x[i]+pts_x[i+1])/2)
+        milieu_y = int((pts_y[i]+pts_y[i+1])/2)
+        col_moy[j + 8*i] = better_warped_img[milieu_x, milieu_y]
+    print(col_moy[0:9])
 print("Done")
 
 if SHOW_PLOTS:
