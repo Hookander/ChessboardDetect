@@ -18,211 +18,220 @@ input_folder = "input"
 output_folder = "rectified"
 plot_folder = "plots"
 
+def getColorArray(foldername, SAVE_PLOTS = True, SHOW_PLOTS = True, SAVE_RECTIFIED = True):
 
-for i in [23]:
-  filename ="%02d.jpg" % i
-# for filename in os.listdir(input_folder):
-  filepath = "%s/%s" % (input_folder,filename)
-  output_filename = output_folder+"/"+filename[:-3]+"png"
-  # if (os.path.exists(output_filename)):
-  #   print("%s exists, skipping %s" % (output_filename, filename))
-  #   continue
+  for i in [foldername]:
+    filename ="%02d.jpg" % i
+  # for filename in os.listdir(input_folder):
+    filepath = "%s/%s" % (input_folder,filename)
+    output_filename = output_folder+"/"+filename[:-3]+"png"
+    # if (os.path.exists(output_filename)):
+    #   print("%s exists, skipping %s" % (output_filename, filename))
+    #   continue
 
-  print("Processing %s" % filename)
-  img_orig = scaleImageIfNeeded(PIL.Image.open(filepath))
+    print("Processing %s" % filename)
+    img_orig = scaleImageIfNeeded(PIL.Image.open(filepath))
 
-  # Grayscale
-  img = np.array(img_orig.convert('L')) # grayscale uint8 numpy array
+    # Grayscale
+    img = np.array(img_orig.convert('L')) # grayscale uint8 numpy array
 
-  # Local Histogram Equalization
-  # TODO : Currently breaks line detection etc., 
-  #        tuning should be optimized with this equalization at some point
-  # img = cv2.equalizeHist(img)
-  # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-  # img = clahe.apply(img)
+    # Local Histogram Equalization
+    # TODO : Currently breaks line detection etc., 
+    #        tuning should be optimized with this equalization at some point
+    # img = cv2.equalizeHist(img)
+    # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    # img = clahe.apply(img)
 
-  ##################
-  ## Find initial set of chess lines in image using hough lines & gradient pruning
-  lines_a, lines_b, chess_pts, top_dirs = getChessLinesCorners(img, chessboard_to_screen_ratio = 0.2)
-  if (len(chess_pts) < 4):
-    lines_a, lines_b, chess_pts, top_dirs = getChessLinesCorners(img, chessboard_to_screen_ratio = 0.15)
-  if (len(chess_pts) < 4):
-    lines_a, lines_b, chess_pts, top_dirs = getChessLinesCorners(img, chessboard_to_screen_ratio = 0.3)
-  if (len(chess_pts) == 0):
-    print("Couldn't get result for %s, skipping" % filename)
-    continue
-  elif (len(chess_pts) < 4):
-    print("Couldn't get enough chess points: ", lines_a, lines_b, chess_pts, top_dirs)
-    continue
-  chess_pts = chess_pts[np.argsort(chess_pts[:,0]),:] # Sort by y height (row)
+    ##################
+    ## Find initial set of chess lines in image using hough lines & gradient pruning
+    lines_a, lines_b, chess_pts, top_dirs = getChessLinesCorners(img, chessboard_to_screen_ratio = 0.2)
+    if (len(chess_pts) < 4):
+      lines_a, lines_b, chess_pts, top_dirs = getChessLinesCorners(img, chessboard_to_screen_ratio = 0.15)
+    if (len(chess_pts) < 4):
+      lines_a, lines_b, chess_pts, top_dirs = getChessLinesCorners(img, chessboard_to_screen_ratio = 0.3)
+    if (len(chess_pts) == 0):
+      print("Couldn't get result for %s, skipping" % filename)
+      continue
+    elif (len(chess_pts) < 4):
+      print("Couldn't get enough chess points: ", lines_a, lines_b, chess_pts, top_dirs)
+      continue
+    chess_pts = chess_pts[np.argsort(chess_pts[:,0]),:] # Sort by y height (row)
 
-  ################## 
-  # Find initial guess for chessboard corners and generate rectified image
-  corners = getCorners(chess_pts, top_dirs)
+    ################## 
+    # Find initial guess for chessboard corners and generate rectified image
+    corners = getCorners(chess_pts, top_dirs)
 
-  # Find perspective transform between corners of image to an idealized overhead
-  # We add on two tiles in each direction to account for potential missing lines
-  #  (the assumption being the algorithm should be able to find lines within 2 of edge always)
-  # Assume missing up to 4 tiles along an axis
-  warped_img, M = getTileImage(img_orig, corners, tile_buffer=1+4, tile_res=66)
-  M_inv = np.matrix(np.linalg.inv(M))
+    # Find perspective transform between corners of image to an idealized overhead
+    # We add on two tiles in each direction to account for potential missing lines
+    #  (the assumption being the algorithm should be able to find lines within 2 of edge always)
+    # Assume missing up to 4 tiles along an axis
+    warped_img, M = getTileImage(img_orig, corners, tile_buffer=1+4, tile_res=66)
+    M_inv = np.matrix(np.linalg.inv(M))
 
-  ##################
-  # Get full chessboard line set on rectified image
-  lines_x, lines_y, step_x, step_y = getRectifiedChessLines(warped_img)
-  if not len(lines_x) or not len(lines_y):
-    print("%s : Skipping, not enough lines in warped image" % filename)
-    continue
+    ##################
+    # Get full chessboard line set on rectified image
+    lines_x, lines_y, step_x, step_y = getRectifiedChessLines(warped_img)
+    if not len(lines_x) or not len(lines_y):
+      print("%s : Skipping, not enough lines in warped image" % filename)
+      continue
 
-  # Get edges and internal chessboard corners on rectified image
-  warp_corners, all_warp_corners = getRectChessCorners(lines_x, lines_y)
+    # Get edges and internal chessboard corners on rectified image
+    warp_corners, all_warp_corners = getRectChessCorners(lines_x, lines_y)
 
-  # Transform from rectified points back to original points for visualization
-  tile_centers = all_warp_corners + np.array([step_x/2.0, step_y/2.0]) # Offset from corner to tile centers
-  real_corners, all_real_tile_centers = getOrigChessCorners(warp_corners, tile_centers, M_inv)   
+    # Transform from rectified points back to original points for visualization
+    tile_centers = all_warp_corners + np.array([step_x/2.0, step_y/2.0]) # Offset from corner to tile centers
+    real_corners, all_real_tile_centers = getOrigChessCorners(warp_corners, tile_centers, M_inv)   
 
-  tile_res = 64 # Each tile has N pixels per side
-  tile_buffer = 1
-  better_warped_img, better_M = getTileImage(img_orig, real_corners, tile_buffer=tile_buffer, tile_res=tile_res)
-  # _, better_M = getTileImage(img_orig, real_corners, tile_buffer=1+4, tile_res=66)
+    tile_res = 64 # Each tile has N pixels per side
+    tile_buffer = 1
+    better_warped_img, better_M = getTileImage(img_orig, real_corners, tile_buffer=tile_buffer, tile_res=tile_res)
+    # _, better_M = getTileImage(img_orig, real_corners, tile_buffer=1+4, tile_res=66)
 
-  # Further refine rectified image
-  better_warped_img, was_rotated, refine_M = reRectifyImages(better_warped_img)
-  # combined_M = better_M
-  combined_M = np.matmul(refine_M,better_M)
+    # Further refine rectified image
+    better_warped_img, was_rotated, refine_M = reRectifyImages(better_warped_img)
+    # combined_M = better_M
+    combined_M = np.matmul(refine_M,better_M)
 
-  if was_rotated:
-    print(" tile image was rotated")
+    if was_rotated:
+      print(" tile image was rotated")
+    
+    M_inv = np.matrix(np.linalg.inv(combined_M))
+    
+    # Get better_M based corners
+    hlines = vlines = (np.arange(8)+tile_buffer)*tile_res
+    hcorner = (np.array([0,8,8,0])+tile_buffer)*tile_res
+    vcorner = (np.array([0,0,8,8])+tile_buffer)*tile_res
+    ideal_corners = np.vstack([hcorner,vcorner]).T
+    ideal_all_corners = np.array(list(itertools.product(hlines, vlines)))
+    ideal_tile_centers = ideal_all_corners + np.array([tile_res/2.0, tile_res/2.0]) # Offset from corner to tile centers
+    # Get refined real corners
+    real_corners, all_real_tile_centers = getOrigChessCorners(ideal_corners, ideal_tile_centers, M_inv)
+    # Get final refined rectified warped image for saving
+    better_warped_img, _ = getTileImage(img_orig, real_corners, tile_buffer=tile_buffer, tile_res=tile_res)
+
+    print("Final transform matrix from image to rectified:\n", combined_M)
+
+
+    if SAVE_RECTIFIED:
+      print(" Saving tile image to %s" % output_filename)
+      PIL.Image.fromarray(better_warped_img).save(output_filename)
+
+    if SHOW_PLOTS or SAVE_PLOT:
+      ##################
+      # Plot Top Left Image, initial corner finding setup
+      fig = plt.figure(filename, figsize=(12,8))
+      #fig.subplots_adjust(left=0.05,right=.95,bottom=0.05,top=.95)
+      
+      plt.subplot(221,aspect='equal')
+      plt.imshow(img_orig)
+
+      
+      # Lines
+      for idx, line in enumerate(lines_a):
+        x1, y1, x2, y2 = line
+        plt.plot([x1,x2], [y1,y2],'b', lw=3, alpha=0.5)
+        # plt.text(x1, y1-2,'%s' % idx, color='blue', size=8, alpha=0.5);
+      for idx, line in enumerate(lines_b):
+        x1, y1, x2, y2 = line
+        plt.plot([x1,x2], [y1,y2],'g', lw=3, alpha=0.5)
+
+      plt.plot(corners[[0,1,2,3,0],0], corners[[0,1,2,3,0],1], 'r', lw=5)
+
+      plt.plot(chess_pts[:,0], chess_pts[:,1], 'ro',ms=3) # Points
+      # for idx in range(chess_pts.shape[0]):
+      #   plt.text(chess_pts[idx,0], chess_pts[idx,1]-2,'%d' % idx, color='red', size=8,);
+
+      plt.title('Input chess board + overlay initial prediction')
+      plt.axis([0,img_orig.size[0],img_orig.size[1], 0])
+    
+      ##################
+      # Plot Top Right: Rectified image + lines
+      plt.subplot(222,aspect='equal')
+      plt.imshow(warped_img)
+
+      # Overlay rectified lines
+      for idx, x_pos in enumerate(lines_x):
+        plt.plot([x_pos, x_pos], [min(lines_y), max(lines_y)], 'r', lw=4)
+        # plt.text(x_pos, min(lines_y)-10,'%d' % idx, color='red', size=10);
+      for idx, y_pos in enumerate(lines_y):
+        plt.plot([min(lines_x), max(lines_x)], [y_pos, y_pos], 'g', lw=4)
+        # plt.text(min(lines_x)-40, y_pos, '%d' % idx, color='green', size=10);
+      plt.title('Rectified image and prediction pass #2')
+      plt.axis([0,warped_img.shape[1],warped_img.shape[0], 0])
+      
+      ##################
+      # Plot Bottom Left: Overlay original image
+      plt.subplot(223,aspect='equal')
+      plt.imshow(img_orig)
+
+      # plt.plot(real_corners[:,0], real_corners[:,1], 'ro', ms=5)
+      # plt.plot(corners[[0,1,2,3,0],0], corners[[0,1,2,3,0],1], 'b', lw=2)
+      plt.plot(real_corners[[0,1,2,3,0],0], real_corners[[0,1,2,3,0],1], 'r', lw=7, alpha=0.75)
+      plt.plot(all_real_tile_centers[:,0], all_real_tile_centers[:,1], 'gD-',ms=4,lw=2, alpha=0.75)
+      # for i in range(all_real_tile_centers.shape[0]):
+      #   plt.text(all_real_tile_centers[i,0], all_real_tile_centers[i,1], '%d' % i, color='white', size=8);
+
+      plt.title('Overlay: Refined tile positions')
+      plt.axis([0,img_orig.size[0],img_orig.size[1], 0])
   
-  M_inv = np.matrix(np.linalg.inv(combined_M))
-  
-  # Get better_M based corners
-  hlines = vlines = (np.arange(8)+tile_buffer)*tile_res
-  hcorner = (np.array([0,8,8,0])+tile_buffer)*tile_res
-  vcorner = (np.array([0,0,8,8])+tile_buffer)*tile_res
-  ideal_corners = np.vstack([hcorner,vcorner]).T
-  ideal_all_corners = np.array(list(itertools.product(hlines, vlines)))
-  ideal_tile_centers = ideal_all_corners + np.array([tile_res/2.0, tile_res/2.0]) # Offset from corner to tile centers
-  # Get refined real corners
-  real_corners, all_real_tile_centers = getOrigChessCorners(ideal_corners, ideal_tile_centers, M_inv)
-  # Get final refined rectified warped image for saving
-  better_warped_img, _ = getTileImage(img_orig, real_corners, tile_buffer=tile_buffer, tile_res=tile_res)
+      ##################
+      # Plot Bottom Right: Updated tile map
+      plt.subplot(224,aspect='equal')
+      plt.imshow(better_warped_img)
+      pts_x, pts_y = [], []
+      for i in range(0,9): #De 0 à 9 pour poouvoir aussi capter les bors de l'échiquier
+        ix = (i+tile_buffer)*tile_res
+        pts_x.append(ix)
+        iy0 = tile_buffer*tile_res
+        plt.plot([ix, ix],
+                [iy0,(8+tile_buffer)*tile_res],
+                'r', lw=2)
+        plt.text(ix-10, iy0-10, '%d' % i, color='white', size=10, fontweight='heavy');
+      
+      for i in range(0,9):
+        iy = (i+tile_buffer)*tile_res
+        pts_y.append(iy)
+        ix0 = tile_buffer*tile_res
+        plt.plot([ix0,(8+tile_buffer)*tile_res],
+                [iy, iy],
+                'r', lw=2)
+        plt.text(ix0-25, iy+5, '%d' % i, color='white', size=10, fontweight='heavy');
+      plt.scatter((pts_x[1]), (pts_y[0]))
 
-  print("Final transform matrix from image to rectified:\n", combined_M)
+      plt.title('Output refined tile map')
+      plt.axis([0,better_warped_img.shape[1],better_warped_img.shape[0], 0])
 
+      if SAVE_PLOT:
+        output_plot_filename = plot_folder+"/"+filename[:-3]+"png"
+        print(" Saving plot to %s" % output_plot_filename)
+        plt.savefig(output_plot_filename, bbox_inches='tight')
+      
+      """
+      Mtn qu'on a la position des intersections des cases de l'échiquier normalisé, on va calculer les "couleurs moyennes"
+      sur chaque case (dont on connait les coordonnées) -> permet de les comparer d'une photo à l'autre et donc
+      de savoir si une pièce a bougé ou pas
+      """
+      col_moy = np.zeros([64, 3]) #[0 for i in range(64)] #pour l'instant c'est juste la couleur du centre
+      print(pts_x)
+      print(better_warped_img.shape)
+      milieux = {}
+      for i in range(len(pts_x)-1):
+        for j in range(len(pts_y) - 1):
+          milieu_x = int((pts_x[i]+pts_x[i+1])/2)
+          milieu_y = int((pts_y[j]+pts_y[j+1])/2)
+          #plt.scatter((milieu_x), (milieu_y))
+          col_moy[j + 8*i] = better_warped_img[milieu_x, milieu_y]
+          milieux[j + 8*i] = (milieu_x, milieu_y)
+      plt.scatter((milieux[53][0]), (milieux[53][1]))
+      plt.scatter((milieux[0][0]), (milieux[0][1]))
+      plt.scatter((milieux[23][0]), (milieux[23][1]))
+      #plt.scatter((int((pts_x[6]+pts_x[6+1])/2)), (int((pts_y[5]+pts_y[5+1])/2)))
+      #print(col_moy[0:9])
+  print("Done")
 
-  if SAVE_RECTIFIED:
-    print(" Saving tile image to %s" % output_filename)
-    PIL.Image.fromarray(better_warped_img).save(output_filename)
-
-  if SHOW_PLOTS or SAVE_PLOT:
-    ##################
-    # Plot Top Left Image, initial corner finding setup
-    fig = plt.figure(filename, figsize=(12,8))
-    #fig.subplots_adjust(left=0.05,right=.95,bottom=0.05,top=.95)
-    '''
-    plt.subplot(221,aspect='equal')
-    plt.imshow(img_orig)
-
-    
-    # Lines
-    for idx, line in enumerate(lines_a):
-      x1, y1, x2, y2 = line
-      plt.plot([x1,x2], [y1,y2],'b', lw=3, alpha=0.5)
-      # plt.text(x1, y1-2,'%s' % idx, color='blue', size=8, alpha=0.5);
-    for idx, line in enumerate(lines_b):
-      x1, y1, x2, y2 = line
-      plt.plot([x1,x2], [y1,y2],'g', lw=3, alpha=0.5)
-
-    plt.plot(corners[[0,1,2,3,0],0], corners[[0,1,2,3,0],1], 'r', lw=5)
-
-    plt.plot(chess_pts[:,0], chess_pts[:,1], 'ro',ms=3) # Points
-    # for idx in range(chess_pts.shape[0]):
-    #   plt.text(chess_pts[idx,0], chess_pts[idx,1]-2,'%d' % idx, color='red', size=8,);
-
-    plt.title('Input chess board + overlay initial prediction')
-    plt.axis([0,img_orig.size[0],img_orig.size[1], 0])
-  
-    ##################
-    # Plot Top Right: Rectified image + lines
-    plt.subplot(222,aspect='equal')
-    plt.imshow(warped_img)
-
-    # Overlay rectified lines
-    for idx, x_pos in enumerate(lines_x):
-      plt.plot([x_pos, x_pos], [min(lines_y), max(lines_y)], 'r', lw=4)
-      # plt.text(x_pos, min(lines_y)-10,'%d' % idx, color='red', size=10);
-    for idx, y_pos in enumerate(lines_y):
-      plt.plot([min(lines_x), max(lines_x)], [y_pos, y_pos], 'g', lw=4)
-      # plt.text(min(lines_x)-40, y_pos, '%d' % idx, color='green', size=10);
-    plt.title('Rectified image and prediction pass #2')
-    plt.axis([0,warped_img.shape[1],warped_img.shape[0], 0])
-    
-    ##################
-    # Plot Bottom Left: Overlay original image
-    plt.subplot(223,aspect='equal')
-    plt.imshow(img_orig)
-
-    # plt.plot(real_corners[:,0], real_corners[:,1], 'ro', ms=5)
-    # plt.plot(corners[[0,1,2,3,0],0], corners[[0,1,2,3,0],1], 'b', lw=2)
-    plt.plot(real_corners[[0,1,2,3,0],0], real_corners[[0,1,2,3,0],1], 'r', lw=7, alpha=0.75)
-    plt.plot(all_real_tile_centers[:,0], all_real_tile_centers[:,1], 'gD-',ms=4,lw=2, alpha=0.75)
-    # for i in range(all_real_tile_centers.shape[0]):
-    #   plt.text(all_real_tile_centers[i,0], all_real_tile_centers[i,1], '%d' % i, color='white', size=8);
-
-    plt.title('Overlay: Refined tile positions')
-    plt.axis([0,img_orig.size[0],img_orig.size[1], 0])
-'''
-    ##################
-    # Plot Bottom Right: Updated tile map
-    #plt.subplot(224,aspect='equal')
-    plt.imshow(better_warped_img)
-    pts_x, pts_y = [], []
-    for i in range(0,9): #De 0 à 9 pour poouvoir aussi capter les bors de l'échiquier
-      ix = (i+tile_buffer)*tile_res
-      pts_x.append(ix)
-      iy0 = tile_buffer*tile_res
-      plt.plot([ix, ix],
-               [iy0,(8+tile_buffer)*tile_res],
-               'r', lw=2)
-      plt.text(ix-10, iy0-10, '%d' % i, color='white', size=10, fontweight='heavy');
-    
-    for i in range(0,9):
-      iy = (i+tile_buffer)*tile_res
-      pts_y.append(iy)
-      ix0 = tile_buffer*tile_res
-      plt.plot([ix0,(8+tile_buffer)*tile_res],
-               [iy, iy],
-               'r', lw=2)
-      plt.text(ix0-25, iy+5, '%d' % i, color='white', size=10, fontweight='heavy');
-
-    plt.title('Output refined tile map')
-    plt.axis([0,better_warped_img.shape[1],better_warped_img.shape[0], 0])
-
-    if SAVE_PLOT:
-      output_plot_filename = plot_folder+"/"+filename[:-3]+"png"
-      print(" Saving plot to %s" % output_plot_filename)
-      plt.savefig(output_plot_filename, bbox_inches='tight')
-    
-    """
-    Mtn qu'on a la position des intersections des cases de l'échiquier normalisé, on va calculer les "couleurs moyennes"
-    sur chaque case (dont on connait les coordonnées) -> permet de les comparer d'une photo à l'autre et donc
-    de savoir si une pièce a bougé ou pas
-    """
-    col_moy = [0 for i in range(64)]
-    print(pts_x)
-    print(better_warped_img.shape)
-
-    for i in range(len(pts_x)-1):
-      for j in range(len(pts_y) - 1):
-        milieu_x = int((pts_x[i]+pts_x[i+1])/2)
-        milieu_y = int((pts_y[i]+pts_y[i+1])/2)
-        col_moy[j + 8*i] = better_warped_img[milieu_x, milieu_y]
-    print(col_moy[0:9])
-print("Done")
-
-if SHOW_PLOTS:
-  plt.show()
+  if SHOW_PLOTS:
+    plt.show()
+  return col_moy
 
 
 ######################
