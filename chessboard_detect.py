@@ -211,27 +211,62 @@ def getColorArray(foldername, SAVE_PLOTS = True, SHOW_PLOTS = True, SAVE_RECTIFI
       sur chaque case (dont on connait les coordonnées) -> permet de les comparer d'une photo à l'autre et donc
       de savoir si une pièce a bougé ou pas
       """
+      coef_matrix = np.array([[2, 2, 4, 2, 2],
+                              [2, 10, 10, 10, 2], 
+                              [4, 40, 100, 40, 4],
+                              [2, 10, 10, 10, 2],
+                              [2, 2, 4, 2, 2]]) #doit être de taille impaire pour pouvoir centrer
+      #coef_matrix = np.ones([5, 5], dtype=int)
+      #coef_matrix = np.array([[1, 1, 1],
+      #                        [1, 10, 1], 
+      #                        [1, 1, 1]])
+      esp = 15 #nb de pixel d'écart entre les pts
       col_moy = np.zeros([64, 3]) #[0 for i in range(64)] #pour l'instant c'est juste la couleur du centre
+
       print(pts_x)
       print(better_warped_img.shape)
       milieux = {}
+
       for i in range(len(pts_x)-1):
         for j in range(len(pts_y) - 1):
+          s = coef_matrix.shape
+
           milieu_x = int((pts_x[i]+pts_x[i+1])/2)
           milieu_y = int((pts_y[j]+pts_y[j+1])/2)
+          result = np.array([0, 0, 0])
+          
+          """
+          Pour bien prendre les bons pixels, on veut que, lorsque x vaut (taille-1)/2, le 
+          centralized vaille 0, et sinon il augmente de esp lorsque x incrémente
+          -> fonction affine c = a*x +b
+          a = esp
+          b = -esp*(taille -1)/2
+          """
+          a, b = esp, -esp * int((s[0] - 1)/2)
+
+          for x in range(s[0]):
+            centralized_x = a * x + b
+            for y in range(s[1]):
+              centralized_y = a * y +b
+              result += better_warped_img[milieu_x + centralized_x, milieu_y + centralized_y] * coef_matrix[x, y]
+              #plt.scatter([milieu_x + centralized_x], [milieu_y + centralized_y])
           #plt.scatter((milieu_x), (milieu_y))
-          col_moy[j + 8*i] = better_warped_img[milieu_x, milieu_y]
+          result = result/(np.sum(coef_matrix))
+          col_moy[j + 8*i] = result
           milieux[j + 8*i] = (milieu_x, milieu_y)
-      plt.scatter((milieux[53][0]), (milieux[53][1]))
-      plt.scatter((milieux[0][0]), (milieux[0][1]))
-      plt.scatter((milieux[23][0]), (milieux[23][1]))
+      #plt.scatter((milieux[53][0]), (milieux[53][1]))
+      #plt.scatter((milieux[0][0]), (milieux[0][1]))
+      #plt.scatter((milieux[52][0]), (milieux[52][1]))
+      #plt.scatter((milieux[54][0]), (milieux[54][1]))
       #plt.scatter((int((pts_x[6]+pts_x[6+1])/2)), (int((pts_y[5]+pts_y[5+1])/2)))
       #print(col_moy[0:9])
   print("Done")
 
   if SHOW_PLOTS:
     plt.show()
-  return col_moy
+  plt.clf()
+  plt.close()
+  return col_moy, better_warped_img, milieux
 
 
 ######################
