@@ -17,10 +17,10 @@ relever leurs couleurs pour avoir un idée de l'éclairage, et même déterminer
 """
 
 
-old_color_array, _, _ = getColorArray(50, False , False, False)
+old_color_array, _, _ = getColorArray(60, False , False, False)
 new_color_array, better_warped_img, milieux = getColorArray(51, False , False, False)
 
-#? Idée à implémenter -> on normalise les tableaux pour minimiser l'erreur
+
 
 
 old_rb, new_rb = np.zeros([64]), np.zeros([64])
@@ -28,6 +28,10 @@ old_rb, new_rb = np.zeros([64]), np.zeros([64])
 #Black and white conversion
 old_rb[:] = old_color_array[:, 0]*0.30 + old_color_array[:, 1]*0.59 + old_color_array[:, 2] * 0.11
 new_rb[:] = new_color_array[:, 0]*0.30 + new_color_array[:, 1]*0.59 + new_color_array[:, 2] * 0.11
+
+#Normalization
+old_rb = old_rb / np.max(old_rb)
+new_rb = new_rb / np.max(new_rb)
 
 #print(old_rb[0])
 diff_mean = np.abs(old_rb - new_rb)

@@ -213,7 +213,7 @@ def getColorArray(foldername, SAVE_PLOTS = True, SHOW_PLOTS = True, SAVE_RECTIFI
       """
       coef_matrix = np.array([[2, 2, 4, 2, 2],
                               [2, 10, 10, 10, 2], 
-                              [4, 40, 100, 40, 4],
+                              [4, 10, 50, 10, 4],
                               [2, 10, 10, 10, 2],
                               [2, 2, 4, 2, 2]]) #doit être de taille impaire pour pouvoir centrer
       #coef_matrix = np.ones([5, 5], dtype=int)
